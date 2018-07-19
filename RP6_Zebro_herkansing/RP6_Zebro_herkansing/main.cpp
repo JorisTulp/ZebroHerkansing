@@ -15,11 +15,16 @@
 #include <stdint.h>
 #include <avr/interrupt.h>
 
-#define BAUD 9600
-#define DEBUG_ON 0
-#define SCL_frequentie 100000
+#include "TWIDefines.h"
+#include "vRegisterDefines.h"
+
+
 #define TRUE 0xFF
 #define FALSE 0
+#define SCL_frequentie 100000
+#define BAUD 9600
+#define DEBUG_ON TRUE
+
 #define DEFAULT_AFSTAND 30
 #define DEFAULT_AFSTAND_CALCULATED 2*DEFAULT_AFSTAND/0.0343
 #define DEFAULT_SNELHEID 100
@@ -60,7 +65,7 @@ int main(void)
 	sei();
 
 	gewensteAfstand = DEFAULT_AFSTAND_CALCULATED;
- 	//afstandTest(); //Only uncomment this if you want the Arduino to continuously print distance data. RP6 will do nothing else.
+ 	// // afstandTest(); //Only uncomment this if you want the Arduino to continuously print distance data. RP6 will do nothing else.
 	
 	writeString("\n\nWelkom bij de Wall-Follow Robot.\nKies een optie:\n");
 	writeString("- a: Afstand tot de muur aanpassen (25-50 cm)\n");
@@ -99,16 +104,17 @@ void ontvangen(uint8_t ad,uint8_t b[],uint8_t max) {
 	
 	uint8_t tel=0;
 	do {
-		if(tel == max-1)
-		TWCR=(1<<TWINT)|(1<<TWEN);
-		else
-		TWCR=(1<<TWINT)|(1<<TWEN)|(1<<TWEA);
+		if(tel == max-1) {
+			TWCR=(1<<TWINT)|(1<<TWEN);
+		} else {
+			TWCR=(1<<TWINT)|(1<<TWEN)|(1<<TWEA);
+		}
 		while(!(TWCR & (1<<TWINT)));
 		op[tel] = TWSR;
-		b[tel]=TWDR;
-	} while(op[tel++] == 0x50);
+		b[tel] = TWDR;
+	} while (op[tel++] == TW_MR_DATA_ACK);
 
-	TWCR=(1<<TWINT)|(1<<TWSTO)|(1<<TWEN);
+	TWCR = (1<<TWINT)|(1<<TWSTO)|(1<<TWEN);
 
 	//   for(uint8_t i=0;i<tel;++i) {
 	//	 writeString("\n\r");writeInteger(op[i],16);
@@ -191,7 +197,7 @@ void processData() {
 			}
 			break;
 		case 's':
-			array[0] = 0x00;
+			array[0] = DEF_SNELHEID;
 			if(DEBUG_ON) {
 				sprintf(out, "De verzonden data is: %d naar: %d\n",array[1],array[0]);
 				writeString(out);
@@ -199,7 +205,7 @@ void processData() {
 			verzenden(I2C_SLAVEADDRESS_RP6,array,sizeof(array)/sizeof(uint8_t));
 			break;
 		case 'p':
-			array[0] = 0x01;
+			array[0] = GAIN_P;
 			if(DEBUG_ON) {
 				sprintf(out, "De verzonden data is: %d naar: %d\n",array[1],array[0]);
 				writeString(out);
@@ -207,7 +213,7 @@ void processData() {
 			verzenden(I2C_SLAVEADDRESS_RP6,array,sizeof(array)/sizeof(uint8_t));
 			break;
 		case 'd':
-			array[0] = 0x02;
+			array[0] = GAIN_D;
 			if(DEBUG_ON) {
 				sprintf(out, "De verzonden data is: %d naar: %d\n",array[1],array[0]);
 				writeString(out);
@@ -254,7 +260,7 @@ uint16_t afstand() {
 
 void stuurAfstand(int16_t value) {
 	uint8_t tempValue[3];
-	tempValue[0] = 0x04;
+	tempValue[0] = AFSTAND_H;
 	tempValue[1] = value >> 8;
 	tempValue[2] = value;
 
